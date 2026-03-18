@@ -161,12 +161,74 @@ function generateConfig(configType, format) {
   return config;
 }
 
+/** @type {import('rollup').RollupOptions} */
+const compatConfig = {
+  input: 'src/compat/index.ts',
+  plugins: [
+    commonjs(),
+    nodeResolve({
+      dedupe: ['bn.js', 'buffer'],
+      extensions,
+      preferBuiltins: true,
+    }),
+    babel({
+      exclude: '**/node_modules/**',
+      extensions,
+      babelHelpers: 'runtime',
+      plugins: ['@babel/plugin-transform-runtime'],
+    }),
+    replace({
+      preventAssignment: true,
+      values: {
+        'process.env.NODE_ENV': JSON.stringify(env),
+        'process.env.BROWSER': JSON.stringify(false),
+        'process.env.TEST_LIVE': JSON.stringify(false),
+        'process.env.npm_package_version': JSON.stringify(
+          process.env.npm_package_version,
+        ),
+      },
+    }),
+  ],
+  external: [
+    /@babel\/runtime/,
+    /@solana\//,
+    'buffer',
+    'superstruct',
+  ],
+  onwarn: function (warning, rollupWarn) {
+    rollupWarn(warning);
+    if (warning.code === 'CIRCULAR_DEPENDENCY') {
+      throw new Error(
+        'Please eliminate the circular dependencies listed ' +
+          'above and retry the build',
+      );
+    }
+  },
+  treeshake: {
+    moduleSideEffects: false,
+  },
+  output: [
+    {
+      file: 'lib/compat/index.cjs.js',
+      format: 'cjs',
+      interop: 'compat',
+      sourcemap: true,
+    },
+    {
+      file: 'lib/compat/index.esm.js',
+      format: 'es',
+      sourcemap: true,
+    },
+  ],
+};
+
 /** @type {import('rollup').RollupOptions[]} */
 const configs = [
   generateConfig('node'),
   generateConfig('browser'),
   generateConfig('browser', 'iife'),
   generateConfig('react-native'),
+  compatConfig,
 ];
 
 export default configs;

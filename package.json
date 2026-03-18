@@ -19,6 +19,23 @@
   "publishConfig": {
     "access": "public"
   },
+  "exports": {
+    ".": {
+      "react-native": "./lib/index.native.js",
+      "browser": {
+        "import": "./lib/index.browser.esm.js",
+        "require": "./lib/index.browser.cjs.js"
+      },
+      "import": "./lib/index.esm.js",
+      "require": "./lib/index.cjs.js",
+      "types": "./lib/index.d.ts"
+    },
+    "./compat": {
+      "import": "./lib/compat/index.esm.js",
+      "require": "./lib/compat/index.cjs.js",
+      "types": "./lib/compat/index.d.ts"
+    }
+  },
   "browser": {
     "./lib/index.cjs.js": "./lib/index.browser.cjs.js",
     "./lib/index.esm.js": "./lib/index.browser.esm.js"
