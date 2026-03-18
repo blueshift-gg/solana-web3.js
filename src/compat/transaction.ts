@@ -11,6 +11,7 @@ import {
 } from '@solana/transactions';
 import type {PublicKey} from '../publickey';
 import type {VersionedTransaction} from '../transaction';
+import {toKitAddress} from './address';
 
 function convertSignatures(
   transaction: VersionedTransaction,
@@ -18,7 +19,7 @@ function convertSignatures(
 ): SignaturesMap {
   return Object.fromEntries(
     transaction.signatures.map((sig, index) => {
-      const address = staticAccountKeys[index];
+      const address = toKitAddress(staticAccountKeys[index]);
       if (sig.every(b => b === 0)) {
         // all-0 signatures are stored as null
         return [address, null];
