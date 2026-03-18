@@ -366,7 +366,7 @@ function* programAddressNonceCandidates(
   void
 > {
   let nonce = 255;
-  while (nonce != 0) {
+  while (nonce !== 0) {
     yield [nonce, seeds.concat(Uint8Array.of(nonce))];
     nonce--;
   }
