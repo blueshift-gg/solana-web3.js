@@ -93,7 +93,7 @@ export class Address {
   static unique(): Address {
     const key = new Address(uniquePublicKeyCounter);
     uniquePublicKeyCounter += 1;
-    return new Address(key.toBytes());
+    return key;
   }
 
   /**
