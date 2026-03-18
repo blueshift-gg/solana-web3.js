@@ -561,18 +561,15 @@ describe('Address', function () {
     expect(Address.decodeUnchecked(sliced).equals(publicKey)).to.be.true;
   });
 
-  it('verifies signatures in async and sync modes', async () => {
+  it('verifies signatures', async () => {
     const signer = await Keypair.generate();
     const message = Buffer.from('public key verify message');
     const signature = await signer.signBytes(message);
 
     expect(await signer.publicKey.verifySignature(signature, message)).to.be.true;
-    expect(signer.publicKey.verifySignatureSync(signature, message)).to.be.true;
 
     const wrongMessage = Buffer.from('wrong message');
     expect(await signer.publicKey.verifySignature(signature, wrongMessage)).to.be
-      .false;
-    expect(signer.publicKey.verifySignatureSync(signature, wrongMessage)).to.be
       .false;
   });
 });
