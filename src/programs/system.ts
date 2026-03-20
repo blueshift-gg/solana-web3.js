@@ -1,9 +1,10 @@
 import * as BufferLayout from '@solana/buffer-layout';
-
+import {getU32Codec} from '@solana/codecs-numbers';
 
 import {
   InstructionType,
   IInstructionInputData,
+  ProgramInstructions,
 } from '../instruction';
 import * as Layout from '../layout';
 import {NONCE_ACCOUNT_LENGTH} from '../nonce-account';
@@ -39,6 +40,19 @@ import {
   parseWithdrawNonceAccountInstruction,
   SystemInstruction as KitSystemInstruction,
   SYSTEM_PROGRAM_ADDRESS,
+  getAdvanceNonceAccountInstructionDataCodec,
+  getAllocateInstructionDataCodec,
+  getAllocateWithSeedInstructionDataCodec,
+  getAssignInstructionDataCodec,
+  getAssignWithSeedInstructionDataCodec,
+  getAuthorizeNonceAccountInstructionDataCodec,
+  getCreateAccountInstructionDataCodec,
+  getCreateAccountWithSeedInstructionDataCodec,
+  getInitializeNonceAccountInstructionDataCodec,
+  getTransferSolInstructionDataCodec,
+  getTransferSolWithSeedInstructionDataCodec,
+  getUpgradeNonceAccountInstructionDataCodec,
+  getWithdrawNonceAccountInstructionDataCodec,
   ADVANCE_NONCE_ACCOUNT_DISCRIMINATOR,
   ALLOCATE_DISCRIMINATOR,
   ALLOCATE_WITH_SEED_DISCRIMINATOR,
@@ -57,6 +71,7 @@ import {toKitAddress} from '../compat/address';
 import {fromKitInstruction, toKitInstruction} from '../compat/instruction';
 
 const SYSTEM_PROGRAM_ID = new Address(SYSTEM_PROGRAM_ADDRESS);
+const U32_CODEC = getU32Codec();
 
 /**
  * Create account system transaction params
@@ -721,6 +736,69 @@ export const SYSTEM_INSTRUCTION_LAYOUTS = Object.freeze<{
     layout: BufferLayout.struct<
       SystemInstructionInputData['UpgradeNonceAccount']
     >([BufferLayout.u32('instruction')]),
+  },
+});
+
+/**
+ * System program instructions powered by Kit Codama codecs.
+ * This is the v3 replacement for SYSTEM_INSTRUCTION_LAYOUTS.
+ */
+export const SYSTEM_INSTRUCTIONS = ProgramInstructions.create({
+  programId: SYSTEM_PROGRAM_ID,
+  instructionIndexCodec: U32_CODEC,
+  instructions: {
+    Create: {
+      index: CREATE_ACCOUNT_DISCRIMINATOR,
+      codec: getCreateAccountInstructionDataCodec(),
+    },
+    Assign: {
+      index: ASSIGN_DISCRIMINATOR,
+      codec: getAssignInstructionDataCodec(),
+    },
+    Transfer: {
+      index: TRANSFER_SOL_DISCRIMINATOR,
+      codec: getTransferSolInstructionDataCodec(),
+    },
+    CreateWithSeed: {
+      index: CREATE_ACCOUNT_WITH_SEED_DISCRIMINATOR,
+      codec: getCreateAccountWithSeedInstructionDataCodec(),
+    },
+    AdvanceNonceAccount: {
+      index: ADVANCE_NONCE_ACCOUNT_DISCRIMINATOR,
+      codec: getAdvanceNonceAccountInstructionDataCodec(),
+    },
+    WithdrawNonceAccount: {
+      index: WITHDRAW_NONCE_ACCOUNT_DISCRIMINATOR,
+      codec: getWithdrawNonceAccountInstructionDataCodec(),
+    },
+    InitializeNonceAccount: {
+      index: INITIALIZE_NONCE_ACCOUNT_DISCRIMINATOR,
+      codec: getInitializeNonceAccountInstructionDataCodec(),
+    },
+    AuthorizeNonceAccount: {
+      index: AUTHORIZE_NONCE_ACCOUNT_DISCRIMINATOR,
+      codec: getAuthorizeNonceAccountInstructionDataCodec(),
+    },
+    Allocate: {
+      index: ALLOCATE_DISCRIMINATOR,
+      codec: getAllocateInstructionDataCodec(),
+    },
+    AllocateWithSeed: {
+      index: ALLOCATE_WITH_SEED_DISCRIMINATOR,
+      codec: getAllocateWithSeedInstructionDataCodec(),
+    },
+    AssignWithSeed: {
+      index: ASSIGN_WITH_SEED_DISCRIMINATOR,
+      codec: getAssignWithSeedInstructionDataCodec(),
+    },
+    TransferWithSeed: {
+      index: TRANSFER_SOL_WITH_SEED_DISCRIMINATOR,
+      codec: getTransferSolWithSeedInstructionDataCodec(),
+    },
+    UpgradeNonceAccount: {
+      index: UPGRADE_NONCE_ACCOUNT_DISCRIMINATOR,
+      codec: getUpgradeNonceAccountInstructionDataCodec(),
+    },
   },
 });
 
