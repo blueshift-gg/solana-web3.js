@@ -1,18 +1,9 @@
 import * as BufferLayout from '@solana/buffer-layout';
 
-import {
-  addCodecSizePrefix,
-  fixCodecSize,
-  transformCodec,
-} from '@solana/codecs-core';
-import {getBytesCodec, getStructCodec} from '@solana/codecs-data-structures';
-import {getI64Codec, getU32Codec, getU64Codec} from '@solana/codecs-numbers';
-import {getUtf8Codec} from '@solana/codecs-strings';
 
 import {
   InstructionType,
   IInstructionInputData,
-  ProgramInstructions,
 } from '../instruction';
 import * as Layout from '../layout';
 import {NONCE_ACCOUNT_LENGTH} from '../nonce-account';
@@ -33,24 +24,26 @@ import {
   getTransferSolInstruction,
   getTransferSolWithSeedInstruction,
   getWithdrawNonceAccountInstruction,
+  identifySystemInstruction,
+  parseAdvanceNonceAccountInstruction,
+  parseAllocateInstruction,
+  parseAllocateWithSeedInstruction,
+  parseAssignInstruction,
+  parseAssignWithSeedInstruction,
+  parseAuthorizeNonceAccountInstruction,
+  parseCreateAccountInstruction,
+  parseCreateAccountWithSeedInstruction,
+  parseInitializeNonceAccountInstruction,
+  parseTransferSolInstruction,
+  parseTransferSolWithSeedInstruction,
+  parseWithdrawNonceAccountInstruction,
+  SystemInstruction as KitSystemInstruction,
+  SYSTEM_PROGRAM_ADDRESS,
 } from '@solana-program/system';
 import {toKitAddress} from '../compat/address';
-import {fromKitInstruction} from '../compat/instruction';
+import {fromKitInstruction, toKitInstruction} from '../compat/instruction';
 
-const SYSTEM_PROGRAM_ID = new Address('11111111111111111111111111111111');
-
-const U32_CODEC = getU32Codec();
-const U64_CODEC = getU64Codec();
-const I64_NUMBER_CODEC = transformCodec(
-  getI64Codec(),
-  (value: number) => BigInt(value),
-  (value: bigint) => Number(value),
-);
-
-const PUBLIC_KEY_BYTES_CODEC = fixCodecSize(getBytesCodec(), 32);
-const getRustStringCodec = () => addCodecSizePrefix(getUtf8Codec(), U64_CODEC);
-
-const RUST_STRING_CODEC = getRustStringCodec();
+const SYSTEM_PROGRAM_ID = new Address(SYSTEM_PROGRAM_ADDRESS);
 
 /**
  * Create account system transaction params
@@ -273,6 +266,26 @@ export type DecodedTransferWithSeedInstruction = {
 };
 
 /**
+ * Map from Kit SystemInstruction enum to web3.js SystemInstructionType strings.
+ * @internal
+ */
+const KIT_TO_LEGACY_INSTRUCTION_TYPE: Record<KitSystemInstruction, SystemInstructionType> = {
+  [KitSystemInstruction.CreateAccount]: 'Create',
+  [KitSystemInstruction.Assign]: 'Assign',
+  [KitSystemInstruction.TransferSol]: 'Transfer',
+  [KitSystemInstruction.CreateAccountWithSeed]: 'CreateWithSeed',
+  [KitSystemInstruction.AdvanceNonceAccount]: 'AdvanceNonceAccount',
+  [KitSystemInstruction.WithdrawNonceAccount]: 'WithdrawNonceAccount',
+  [KitSystemInstruction.InitializeNonceAccount]: 'InitializeNonceAccount',
+  [KitSystemInstruction.AuthorizeNonceAccount]: 'AuthorizeNonceAccount',
+  [KitSystemInstruction.Allocate]: 'Allocate',
+  [KitSystemInstruction.AllocateWithSeed]: 'AllocateWithSeed',
+  [KitSystemInstruction.AssignWithSeed]: 'AssignWithSeed',
+  [KitSystemInstruction.TransferSolWithSeed]: 'TransferWithSeed',
+  [KitSystemInstruction.UpgradeNonceAccount]: 'UpgradeNonceAccount',
+};
+
+/**
  * System Instruction class
  */
 export class SystemInstruction {
@@ -288,10 +301,8 @@ export class SystemInstruction {
     instruction: TransactionInstruction,
   ): SystemInstructionType {
     this.checkProgramId(instruction.programId);
-
-    return INSTRUCTIONS.getInstructionType(
-      instruction,
-    ) as SystemInstructionType;
+    const kitType = identifySystemInstruction(toKitInstruction(instruction));
+    return KIT_TO_LEGACY_INSTRUCTION_TYPE[kitType];
   }
 
   /**
@@ -302,16 +313,13 @@ export class SystemInstruction {
   ): CreateAccountParams {
     this.checkProgramId(instruction.programId);
     this.checkKeyLength(instruction.keys, 2);
-
-    const {lamports, space, programId} =
-      INSTRUCTIONS.Create.decode(instruction);
-
+    const parsed = parseCreateAccountInstruction(toKitInstruction(instruction));
     return {
       fromPubkey: instruction.keys[0].pubkey,
       newAccountPubkey: instruction.keys[1].pubkey,
-      lamports,
-      space,
-      programId: new Address(programId),
+      lamports: Number(parsed.data.lamports),
+      space: Number(parsed.data.space),
+      programId: new Address(parsed.data.programAddress),
     };
   }
 
@@ -323,13 +331,11 @@ export class SystemInstruction {
   ): DecodedTransferInstruction {
     this.checkProgramId(instruction.programId);
     this.checkKeyLength(instruction.keys, 2);
-
-    const {lamports} = INSTRUCTIONS.Transfer.decode(instruction);
-
+    const parsed = parseTransferSolInstruction(toKitInstruction(instruction));
     return {
       fromPubkey: instruction.keys[0].pubkey,
       toPubkey: instruction.keys[1].pubkey,
-      lamports,
+      lamports: parsed.data.amount,
     };
   }
 
@@ -341,17 +347,14 @@ export class SystemInstruction {
   ): DecodedTransferWithSeedInstruction {
     this.checkProgramId(instruction.programId);
     this.checkKeyLength(instruction.keys, 3);
-
-    const {lamports, seed, programId} =
-      INSTRUCTIONS.TransferWithSeed.decode(instruction);
-
+    const parsed = parseTransferSolWithSeedInstruction(toKitInstruction(instruction));
     return {
       fromPubkey: instruction.keys[0].pubkey,
       basePubkey: instruction.keys[1].pubkey,
       toPubkey: instruction.keys[2].pubkey,
-      lamports,
-      seed,
-      programId: new Address(programId),
+      lamports: parsed.data.amount,
+      seed: parsed.data.fromSeed,
+      programId: new Address(parsed.data.fromOwner),
     };
   }
 
@@ -361,12 +364,10 @@ export class SystemInstruction {
   static decodeAllocate(instruction: TransactionInstruction): AllocateParams {
     this.checkProgramId(instruction.programId);
     this.checkKeyLength(instruction.keys, 1);
-
-    const {space} = INSTRUCTIONS.Allocate.decode(instruction);
-
+    const parsed = parseAllocateInstruction(toKitInstruction(instruction));
     return {
       accountPubkey: instruction.keys[0].pubkey,
-      space,
+      space: Number(parsed.data.space),
     };
   }
 
@@ -378,16 +379,13 @@ export class SystemInstruction {
   ): AllocateWithSeedParams {
     this.checkProgramId(instruction.programId);
     this.checkKeyLength(instruction.keys, 1);
-
-    const {base, seed, space, programId} =
-      INSTRUCTIONS.AllocateWithSeed.decode(instruction);
-
+    const parsed = parseAllocateWithSeedInstruction(toKitInstruction(instruction));
     return {
       accountPubkey: instruction.keys[0].pubkey,
-      basePubkey: new Address(base),
-      seed,
-      space,
-      programId: new Address(programId),
+      basePubkey: new Address(parsed.data.base),
+      seed: parsed.data.seed,
+      space: Number(parsed.data.space),
+      programId: new Address(parsed.data.programAddress),
     };
   }
 
@@ -397,12 +395,10 @@ export class SystemInstruction {
   static decodeAssign(instruction: TransactionInstruction): AssignParams {
     this.checkProgramId(instruction.programId);
     this.checkKeyLength(instruction.keys, 1);
-
-    const {programId} = INSTRUCTIONS.Assign.decode(instruction);
-
+    const parsed = parseAssignInstruction(toKitInstruction(instruction));
     return {
       accountPubkey: instruction.keys[0].pubkey,
-      programId: new Address(programId),
+      programId: new Address(parsed.data.programAddress),
     };
   }
 
@@ -414,15 +410,12 @@ export class SystemInstruction {
   ): AssignWithSeedParams {
     this.checkProgramId(instruction.programId);
     this.checkKeyLength(instruction.keys, 1);
-
-    const {base, seed, programId} =
-      INSTRUCTIONS.AssignWithSeed.decode(instruction);
-
+    const parsed = parseAssignWithSeedInstruction(toKitInstruction(instruction));
     return {
       accountPubkey: instruction.keys[0].pubkey,
-      basePubkey: new Address(base),
-      seed,
-      programId: new Address(programId),
+      basePubkey: new Address(parsed.data.base),
+      seed: parsed.data.seed,
+      programId: new Address(parsed.data.programAddress),
     };
   }
 
@@ -434,18 +427,15 @@ export class SystemInstruction {
   ): CreateAccountWithSeedParams {
     this.checkProgramId(instruction.programId);
     this.checkKeyLength(instruction.keys, 2);
-
-    const {base, seed, lamports, space, programId} =
-      INSTRUCTIONS.CreateWithSeed.decode(instruction);
-
+    const parsed = parseCreateAccountWithSeedInstruction(toKitInstruction(instruction));
     return {
       fromPubkey: instruction.keys[0].pubkey,
       newAccountPubkey: instruction.keys[1].pubkey,
-      basePubkey: new Address(base),
-      seed,
-      lamports,
-      space,
-      programId: new Address(programId),
+      basePubkey: new Address(parsed.data.base),
+      seed: parsed.data.seed,
+      lamports: Number(parsed.data.amount),
+      space: Number(parsed.data.space),
+      programId: new Address(parsed.data.programAddress),
     };
   }
 
@@ -457,13 +447,10 @@ export class SystemInstruction {
   ): InitializeNonceParams {
     this.checkProgramId(instruction.programId);
     this.checkKeyLength(instruction.keys, 3);
-
-    const {authorized} =
-      INSTRUCTIONS.InitializeNonceAccount.decode(instruction);
-
+    const parsed = parseInitializeNonceAccountInstruction(toKitInstruction(instruction));
     return {
       noncePubkey: instruction.keys[0].pubkey,
-      authorizedPubkey: new Address(authorized),
+      authorizedPubkey: new Address(parsed.data.nonceAuthority),
     };
   }
 
@@ -475,9 +462,7 @@ export class SystemInstruction {
   ): AdvanceNonceParams {
     this.checkProgramId(instruction.programId);
     this.checkKeyLength(instruction.keys, 3);
-
-    INSTRUCTIONS.AdvanceNonceAccount.decode(instruction);
-
+    parseAdvanceNonceAccountInstruction(toKitInstruction(instruction));
     return {
       noncePubkey: instruction.keys[0].pubkey,
       authorizedPubkey: instruction.keys[2].pubkey,
@@ -492,14 +477,12 @@ export class SystemInstruction {
   ): WithdrawNonceParams {
     this.checkProgramId(instruction.programId);
     this.checkKeyLength(instruction.keys, 5);
-
-    const {lamports} = INSTRUCTIONS.WithdrawNonceAccount.decode(instruction);
-
+    const parsed = parseWithdrawNonceAccountInstruction(toKitInstruction(instruction));
     return {
       noncePubkey: instruction.keys[0].pubkey,
       toPubkey: instruction.keys[1].pubkey,
       authorizedPubkey: instruction.keys[4].pubkey,
-      lamports,
+      lamports: Number(parsed.data.withdrawAmount),
     };
   }
 
@@ -511,13 +494,11 @@ export class SystemInstruction {
   ): AuthorizeNonceParams {
     this.checkProgramId(instruction.programId);
     this.checkKeyLength(instruction.keys, 2);
-
-    const {authorized} = INSTRUCTIONS.AuthorizeNonceAccount.decode(instruction);
-
+    const parsed = parseAuthorizeNonceAccountInstruction(toKitInstruction(instruction));
     return {
       noncePubkey: instruction.keys[0].pubkey,
       authorizedPubkey: instruction.keys[1].pubkey,
-      newAuthorizedPubkey: new Address(authorized),
+      newAuthorizedPubkey: new Address(parsed.data.newNonceAuthority),
     };
   }
 
@@ -614,117 +595,6 @@ type SystemInstructionInputData = {
   };
   UpgradeNonceAccount: IInstructionInputData;
 };
-
-const INSTRUCTION_DEFS = {
-  Create: {
-    index: 0,
-    codec: getStructCodec([
-      ['instruction', U32_CODEC],
-      ['lamports', I64_NUMBER_CODEC],
-      ['space', I64_NUMBER_CODEC],
-      ['programId', PUBLIC_KEY_BYTES_CODEC],
-    ]),
-  },
-  Assign: {
-    index: 1,
-    codec: getStructCodec([
-      ['instruction', U32_CODEC],
-      ['programId', PUBLIC_KEY_BYTES_CODEC],
-    ]),
-  },
-  Transfer: {
-    index: 2,
-    codec: getStructCodec([
-      ['instruction', U32_CODEC],
-      ['lamports', U64_CODEC],
-    ]),
-  },
-  CreateWithSeed: {
-    index: 3,
-    codec: getStructCodec([
-      ['instruction', U32_CODEC],
-      ['base', PUBLIC_KEY_BYTES_CODEC],
-      ['seed', RUST_STRING_CODEC],
-      ['lamports', I64_NUMBER_CODEC],
-      ['space', I64_NUMBER_CODEC],
-      ['programId', PUBLIC_KEY_BYTES_CODEC],
-    ]),
-  },
-  AdvanceNonceAccount: {
-    index: 4,
-    codec: getStructCodec([['instruction', U32_CODEC]]),
-  },
-  WithdrawNonceAccount: {
-    index: 5,
-    codec: getStructCodec([
-      ['instruction', U32_CODEC],
-      ['lamports', I64_NUMBER_CODEC],
-    ]),
-  },
-  InitializeNonceAccount: {
-    index: 6,
-    codec: getStructCodec([
-      ['instruction', U32_CODEC],
-      ['authorized', PUBLIC_KEY_BYTES_CODEC],
-    ]),
-  },
-  AuthorizeNonceAccount: {
-    index: 7,
-    codec: getStructCodec([
-      ['instruction', U32_CODEC],
-      ['authorized', PUBLIC_KEY_BYTES_CODEC],
-    ]),
-  },
-  Allocate: {
-    index: 8,
-    codec: getStructCodec([
-      ['instruction', U32_CODEC],
-      ['space', I64_NUMBER_CODEC],
-    ]),
-  },
-  AllocateWithSeed: {
-    index: 9,
-    codec: getStructCodec([
-      ['instruction', U32_CODEC],
-      ['base', PUBLIC_KEY_BYTES_CODEC],
-      ['seed', RUST_STRING_CODEC],
-      ['space', I64_NUMBER_CODEC],
-      ['programId', PUBLIC_KEY_BYTES_CODEC],
-    ]),
-  },
-  AssignWithSeed: {
-    index: 10,
-    codec: getStructCodec([
-      ['instruction', U32_CODEC],
-      ['base', PUBLIC_KEY_BYTES_CODEC],
-      ['seed', RUST_STRING_CODEC],
-      ['programId', PUBLIC_KEY_BYTES_CODEC],
-    ]),
-  },
-  TransferWithSeed: {
-    index: 11,
-    codec: getStructCodec([
-      ['instruction', U32_CODEC],
-      ['lamports', U64_CODEC],
-      ['seed', RUST_STRING_CODEC],
-      ['programId', PUBLIC_KEY_BYTES_CODEC],
-    ]),
-  },
-  UpgradeNonceAccount: {
-    index: 12,
-    codec: getStructCodec([['instruction', U32_CODEC]]),
-  },
-};
-
-/**
- * @internal
- */
-export const SYSTEM_INSTRUCTIONS = ProgramInstructions.create({
-  programId: SYSTEM_PROGRAM_ID,
-  instructionIndexCodec: U32_CODEC,
-  instructions: INSTRUCTION_DEFS,
-});
-const INSTRUCTIONS = SYSTEM_INSTRUCTIONS;
 
 /**
  * An enumeration of valid system InstructionType's

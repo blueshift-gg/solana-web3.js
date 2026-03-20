@@ -1,4 +1,10 @@
-import {AccountRole, type Instruction} from '@solana/instructions';
+import {
+  AccountRole,
+  type AccountMeta,
+  type Instruction,
+  type InstructionWithAccounts,
+  type InstructionWithData,
+} from '@solana/instructions';
 import {TransactionInstruction} from '../transaction';
 import {Address} from '../address';
 
@@ -19,24 +25,26 @@ import {toKitAddress} from './address';
  */
 export function toKitInstruction(
   web3jsInstruction: TransactionInstruction,
-): Instruction {
+): Instruction & InstructionWithAccounts<readonly AccountMeta[]> & InstructionWithData<Uint8Array> {
   const data =
     web3jsInstruction.data?.byteLength > 0
       ? Uint8Array.from(web3jsInstruction.data)
-      : undefined;
+      : new Uint8Array(0);
 
-  const accounts = web3jsInstruction.keys.map(accountMeta =>
-    Object.freeze({
-      address: toKitAddress(accountMeta.pubkey),
-      role: toAccountRole(accountMeta.isSigner, accountMeta.isWritable),
-    }),
+  const accounts = Object.freeze(
+    web3jsInstruction.keys.map(accountMeta =>
+      Object.freeze({
+        address: toKitAddress(accountMeta.pubkey),
+        role: toAccountRole(accountMeta.isSigner, accountMeta.isWritable),
+      }),
+    ),
   );
 
   const programAddress = toKitAddress(web3jsInstruction.programId);
 
   return Object.freeze({
-    ...(accounts.length ? {accounts: Object.freeze(accounts)} : null),
-    ...(data ? {data} : null),
+    accounts,
+    data,
     programAddress,
   });
 }

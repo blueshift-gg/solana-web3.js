@@ -143,6 +143,7 @@ describe('toKitInstruction', () => {
     const converted = toKitInstruction(instruction);
 
     expect(converted).to.deep.equal({
+      accounts: [],
       data,
       programAddress: toKitAddress(new PublicKey(programId)),
     });
@@ -188,7 +189,7 @@ describe('toKitInstruction', () => {
     });
   });
 
-  it('applies no data field if the data is zero-length', () => {
+  it('returns empty data for zero-length data', () => {
     const programId = new Uint8Array([13, 14, 15, 16]);
     const keys = [
       {
@@ -213,11 +214,12 @@ describe('toKitInstruction', () => {
           role: AccountRole.READONLY_SIGNER,
         },
       ],
+      data: new Uint8Array(0),
       programAddress: toKitAddress(new PublicKey(programId)),
     });
   });
 
-  it('applies no data field if the data is missing', () => {
+  it('returns empty data when data is missing', () => {
     const programId = new Uint8Array([13, 14, 15, 16]);
     const keys = [
       {
@@ -241,6 +243,7 @@ describe('toKitInstruction', () => {
           role: AccountRole.READONLY_SIGNER,
         },
       ],
+      data: new Uint8Array(0),
       programAddress: toKitAddress(new PublicKey(programId)),
     });
   });
