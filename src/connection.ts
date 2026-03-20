@@ -1617,8 +1617,8 @@ function createRpcTransport(
   url: string,
   config: RpcTransportConfig = {},
 ): RpcTransport {
-  const {disableRetryOnRateLimit, httpHeaders} = config;
-  const fetch = defaultFetch;
+  const {disableRetryOnRateLimit, httpHeaders, fetch: customFetch, fetchMiddleware} = config;
+  const fetch = customFetch ?? defaultFetch;
   let agent: NodeHttpAgent | NodeHttpsAgent | undefined;
   if (!process.env.BROWSER && process.env.NODE_ENV !== 'test') {
     const agentOptions = {
@@ -1662,7 +1662,10 @@ function createRpcTransport(
     let res: Response;
     let waitTime = 500;
     for (;;) {
-      res = await fetch(url, options);
+      const [fetchUrl, fetchInit] = fetchMiddleware
+        ? await fetchMiddleware(url, options)
+        : [url, options];
+      res = await fetch(fetchUrl, fetchInit);
 
       if (res.status !== 429 /* Too many requests */) {
         break;
@@ -3072,6 +3075,20 @@ export type HttpHeaders = {
 /**
  * Configuration for instantiating a Connection
  */
+/**
+ * A custom fetch function matching the global `fetch` signature.
+ */
+export type FetchFn = typeof globalThis.fetch;
+
+/**
+ * A callback that can modify the outgoing request before it is sent.
+ * Return the modified `[info, init]` tuple.
+ */
+export type FetchMiddleware = (
+  info: Parameters<FetchFn>[0],
+  init: Parameters<FetchFn>[1],
+) => Promise<Parameters<FetchFn>> | Parameters<FetchFn>;
+
 export type ConnectionConfig = {
   /** Optional commitment level */
   commitment?: Commitment;
@@ -3083,13 +3100,17 @@ export type ConnectionConfig = {
   disableRetryOnRateLimit?: boolean;
   /** time to allow for the server to initially process a transaction (in milliseconds) */
   confirmTransactionInitialTimeout?: number;
+  /** Optional custom fetch implementation */
+  fetch?: FetchFn;
+  /** Optional middleware to modify outgoing requests before they are sent */
+  fetchMiddleware?: FetchMiddleware;
 };
 
 /**
  * Configuration used to construct an HTTP JSON-RPC transport.
  */
 type RpcTransportConfig = Readonly<
-  Pick<ConnectionConfig, 'disableRetryOnRateLimit' | 'httpHeaders'>
+  Pick<ConnectionConfig, 'disableRetryOnRateLimit' | 'httpHeaders' | 'fetch' | 'fetchMiddleware'>
 >;
 
 /** @internal */
@@ -3194,6 +3215,8 @@ export class Connection {
     let wsEndpoint;
     let httpHeaders;
     let disableRetryOnRateLimit;
+    let customFetch;
+    let fetchMiddleware;
     if (commitmentOrConfig && typeof commitmentOrConfig === 'string') {
       this._commitment = commitmentOrConfig;
     } else if (commitmentOrConfig) {
@@ -3203,6 +3226,8 @@ export class Connection {
       wsEndpoint = commitmentOrConfig.wsEndpoint;
       httpHeaders = commitmentOrConfig.httpHeaders;
       disableRetryOnRateLimit = commitmentOrConfig.disableRetryOnRateLimit;
+      customFetch = commitmentOrConfig.fetch;
+      fetchMiddleware = commitmentOrConfig.fetchMiddleware;
     }
 
     this._rpcEndpoint = assertEndpointUrl(endpoint);
@@ -3212,6 +3237,8 @@ export class Connection {
     const rpcTransportConfig: RpcTransportConfig = Object.freeze({
       disableRetryOnRateLimit,
       httpHeaders,
+      fetch: customFetch,
+      fetchMiddleware,
     });
 
     const {rpc, typedRpc, transport} = createKitRpcClient(
