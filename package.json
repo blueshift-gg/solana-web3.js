@@ -92,6 +92,7 @@
     "@solana/rpc-spec-types": "^6.5.0",
     "@solana/rpc-transport-http": "^6.5.0",
     "@solana/rpc-types": "^6.5.0",
+    "@solana/signers": "^6.5.0",
     "@solana/transactions": "^6.5.0",
     "agentkeepalive": "^4.5.0",
     "buffer": "6.0.3",

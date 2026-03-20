@@ -1,4 +1,5 @@
 import {createKeyPairFromBytes} from '@solana/keys';
+import {createSignerFromKeyPair, KeyPairSigner} from '@solana/signers';
 import {Keypair} from '../keypair';
 
 /**
@@ -22,4 +23,26 @@ export async function toKitKeypair(
   bytes.set(secretKey);
   bytes.set(keypair.publicKey.toBytes(), 32);
   return await createKeyPairFromBytes(bytes, extractable);
+}
+
+/**
+ * Converts a Web3.js [Keypair](https://solana-foundation.github.io/solana-web3.js/classes/Keypair.html)
+ * object to a Kit {@link KeyPairSigner} [Ref](https://www.solanakit.com/docs/concepts/signers#key-pair-signers).
+ * 
+ * Follow's Kit's createSignerFromX Naming conevention
+ *
+ * @example
+ * ```ts
+ * import { toKitSigner } from '@solana/web3.js/compat';
+ *
+ * const web3jsKeypair = Keypair.generate();
+ * const signer = await createSignerFromLegacyKeypair(web3jsKeypair);
+ * ```
+ */
+export async function createSignerFromLegacyKeypair(
+  keypair: Keypair,
+  extractable?: boolean,
+): Promise<KeyPairSigner> {
+  const kitKeypair = await toKitKeypair(keypair, extractable);
+  return await createSignerFromKeyPair(kitKeypair);
 }

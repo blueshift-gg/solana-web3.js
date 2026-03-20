@@ -2,7 +2,7 @@ import {expect} from 'chai';
 
 import {Keypair} from '../../src';
 
-import {toKitKeypair} from '../../src/compat';
+import {toKitKeypair, createSignerFromLegacyKeypair} from '../../src/compat';
 
 describe('toKitKeypair', function () {
   let legacyKeypair: Keypair;
@@ -38,5 +38,46 @@ describe('toKitKeypair', function () {
       const keyPair = await toKitKeypair(legacyKeypair, extractable);
       expect(keyPair.privateKey.extractable).to.equal(extractable);
     });
+  });
+});
+
+describe('createSignerFromLegacyKeypair', function () {
+  let legacyKeypair: Keypair;
+
+  before(async () => {
+    legacyKeypair = await Keypair.generate();
+  });
+
+  it('returns a KeyPairSigner', async () => {
+    const signer = await createSignerFromLegacyKeypair(legacyKeypair);
+    expect(signer).to.have.property('address');
+    expect(signer).to.have.property('signMessages');
+    expect(signer).to.have.property('signTransactions');
+  });
+
+  it('has an address matching the legacy keypair public key', async () => {
+    const signer = await createSignerFromLegacyKeypair(legacyKeypair);
+    expect(signer.address).to.equal(legacyKeypair.publicKey.toBase58());
+  });
+
+  it('can sign a message', async () => {
+    const signer = await createSignerFromLegacyKeypair(legacyKeypair);
+    const message = new Uint8Array([1, 2, 3]);
+    const [signature] = await signer.signMessages([
+      {content: message, signatures: {}},
+    ]);
+    expect(signature).to.be.an('object');
+    // Signature should have exactly one entry keyed by the signer's address
+    const sigBytes = Object.values(signature)[0];
+    expect(sigBytes).to.be.instanceOf(Uint8Array);
+    expect(sigBytes).to.have.lengthOf(64);
+  });
+
+  it('passes extractable through to the underlying keypair', async () => {
+    const signer = await createSignerFromLegacyKeypair(legacyKeypair, true);
+    expect(signer).to.have.property('address');
+    // Non-extractable by default
+    const signerDefault = await createSignerFromLegacyKeypair(legacyKeypair);
+    expect(signerDefault).to.have.property('address');
   });
 });
