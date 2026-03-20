@@ -83,14 +83,14 @@ type InstructionCodecInput<TCodec> =
 type InstructionCodecOutput<TCodec> =
   TCodec extends Codec<infer _TFrom, infer TTo> ? TTo : never;
 
-type StripInstruction<T> =
-  T extends {instruction: unknown} ? Omit<T, 'instruction'> : T;
+type StripDiscriminator<T> =
+  T extends {discriminator: unknown} ? Omit<T, 'discriminator'> : T;
 
-type InstructionParams<TCodec> = StripInstruction<
+type InstructionParams<TCodec> = StripDiscriminator<
   InstructionCodecInput<TCodec>
 >;
 
-type InstructionDecoded<TCodec> = StripInstruction<
+type InstructionDecoded<TCodec> = StripDiscriminator<
   InstructionCodecOutput<TCodec>
 >;
 
@@ -162,15 +162,14 @@ type ProgramInstructionsTyped<
     ) => keyof ProgramInstructionEntriesFor<TInstructions>;
   };
 
-const assertInstructionIndex = (
+const assertDiscriminator = (
   data: Record<string, unknown>,
   index: number,
 ) => {
-  const instructionIndex = (data as unknown as IInstructionInputData)
-    .instruction;
-  if (instructionIndex !== index) {
+  const discriminator = (data as {discriminator?: number}).discriminator;
+  if (discriminator !== index) {
     throw new Error(
-      `invalid instruction; instruction index mismatch ${instructionIndex} != ${index}`,
+      `invalid instruction; discriminator mismatch ${discriminator} != ${index}`,
     );
   }
 };
@@ -247,7 +246,7 @@ function encodeProgramInstructionData<
   params?: InstructionParams<TCodec>,
 ): Uint8Array {
   const data: InstructionCodecInput<TCodec> = {
-    instruction: definition.index,
+    discriminator: definition.index,
     ...(params ?? {}),
   } as InstructionCodecInput<TCodec>;
 
@@ -288,8 +287,8 @@ function buildProgramInstructionEntries(
       } catch (err) {
         throw new Error('invalid instruction; ' + err);
       }
-      assertInstructionIndex(decoded, definition.index);
-      const {instruction: _instruction, ...rest} = decoded;
+      assertDiscriminator(decoded, definition.index);
+      const {discriminator: _discriminator, ...rest} = decoded;
       return rest;
     };
 

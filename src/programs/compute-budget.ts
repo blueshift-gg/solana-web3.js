@@ -81,7 +81,7 @@ const INSTRUCTION_DEFS = {
   RequestUnits: {
     index: 0,
     codec: getStructCodec([
-      ['instruction', U8_CODEC],
+      ['discriminator', U8_CODEC],
       ['units', U32_CODEC],
       ['additionalFee', U32_CODEC],
     ]),
@@ -89,21 +89,21 @@ const INSTRUCTION_DEFS = {
   RequestHeapFrame: {
     index: 1,
     codec: getStructCodec([
-      ['instruction', U8_CODEC],
+      ['discriminator', U8_CODEC],
       ['bytes', U32_CODEC],
     ]),
   },
   SetComputeUnitLimit: {
     index: 2,
     codec: getStructCodec([
-      ['instruction', U8_CODEC],
+      ['discriminator', U8_CODEC],
       ['units', U32_CODEC],
     ]),
   },
   SetComputeUnitPrice: {
     index: 3,
     codec: getStructCodec([
-      ['instruction', U8_CODEC],
+      ['discriminator', U8_CODEC],
       ['microLamports', U64_CODEC],
     ]),
   },

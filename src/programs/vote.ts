@@ -322,14 +322,14 @@ const INSTRUCTION_DEFS = {
   InitializeAccount: {
     index: 0,
     codec: getStructCodec([
-      ['instruction', U32_CODEC],
+      ['discriminator', U32_CODEC],
       ['voteInit', VOTE_INIT_CODEC],
     ]),
   },
   Authorize: {
     index: 1,
     codec: getStructCodec([
-      ['instruction', U32_CODEC],
+      ['discriminator', U32_CODEC],
       ['newAuthorized', PUBLIC_KEY_BYTES_CODEC],
       ['voteAuthorizationType', U32_CODEC],
     ]),
@@ -337,18 +337,18 @@ const INSTRUCTION_DEFS = {
   Withdraw: {
     index: 3,
     codec: getStructCodec([
-      ['instruction', U32_CODEC],
+      ['discriminator', U32_CODEC],
       ['lamports', I64_NUMBER_CODEC],
     ]),
   },
   UpdateValidatorIdentity: {
     index: 4,
-    codec: getStructCodec([['instruction', U32_CODEC]]),
+    codec: getStructCodec([['discriminator', U32_CODEC]]),
   },
   AuthorizeWithSeed: {
     index: 10,
     codec: getStructCodec([
-      ['instruction', U32_CODEC],
+      ['discriminator', U32_CODEC],
       ['voteAuthorizeWithSeedArgs', VOTE_AUTHORIZE_WITH_SEED_CODEC],
     ]),
   },

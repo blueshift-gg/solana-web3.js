@@ -508,7 +508,7 @@ export const STAKE_INSTRUCTIONS = ProgramInstructions.create({
     Initialize: {
       index: 0,
       codec: getStructCodec([
-        ['instruction', U32_CODEC],
+        ['discriminator', U32_CODEC],
         ['authorized', AUTHORIZED_CODEC],
         ['lockup', LOCKUP_CODEC],
       ]),
@@ -516,41 +516,41 @@ export const STAKE_INSTRUCTIONS = ProgramInstructions.create({
     Authorize: {
       index: 1,
       codec: getStructCodec([
-        ['instruction', U32_CODEC],
+        ['discriminator', U32_CODEC],
         ['newAuthorized', PUBLIC_KEY_BYTES_CODEC],
         ['stakeAuthorizationType', U32_CODEC],
       ]),
     },
     Delegate: {
       index: 2,
-      codec: getStructCodec([['instruction', U32_CODEC]]),
+      codec: getStructCodec([['discriminator', U32_CODEC]]),
     },
     Split: {
       index: 3,
       codec: getStructCodec([
-        ['instruction', U32_CODEC],
+        ['discriminator', U32_CODEC],
         ['lamports', I64_NUMBER_CODEC],
       ]),
     },
     Withdraw: {
       index: 4,
       codec: getStructCodec([
-        ['instruction', U32_CODEC],
+        ['discriminator', U32_CODEC],
         ['lamports', I64_NUMBER_CODEC],
       ]),
     },
     Deactivate: {
       index: 5,
-      codec: getStructCodec([['instruction', U32_CODEC]]),
+      codec: getStructCodec([['discriminator', U32_CODEC]]),
     },
     Merge: {
       index: 7,
-      codec: getStructCodec([['instruction', U32_CODEC]]),
+      codec: getStructCodec([['discriminator', U32_CODEC]]),
     },
     AuthorizeWithSeed: {
       index: 8,
       codec: getStructCodec([
-        ['instruction', U32_CODEC],
+        ['discriminator', U32_CODEC],
         ['newAuthorized', PUBLIC_KEY_BYTES_CODEC],
         ['stakeAuthorizationType', U32_CODEC],
         ['authoritySeed', RUST_STRING_CODEC],

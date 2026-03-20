@@ -112,29 +112,29 @@ const INSTRUCTION_DEFS = {
   CreateLookupTable: {
     index: 0,
     codec: getStructCodec([
-      ['instruction', U32_CODEC],
+      ['discriminator', U32_CODEC],
       ['recentSlot', U64_CODEC],
       ['bumpSeed', U8_CODEC],
     ]),
   },
   FreezeLookupTable: {
     index: 1,
-    codec: getStructCodec([['instruction', U32_CODEC]]),
+    codec: getStructCodec([['discriminator', U32_CODEC]]),
   },
   ExtendLookupTable: {
     index: 2,
     codec: getStructCodec([
-      ['instruction', U32_CODEC],
+      ['discriminator', U32_CODEC],
       ['addresses', PUBLIC_KEY_ARRAY_CODEC],
     ]),
   },
   DeactivateLookupTable: {
     index: 3,
-    codec: getStructCodec([['instruction', U32_CODEC]]),
+    codec: getStructCodec([['discriminator', U32_CODEC]]),
   },
   CloseLookupTable: {
     index: 4,
-    codec: getStructCodec([['instruction', U32_CODEC]]),
+    codec: getStructCodec([['discriminator', U32_CODEC]]),
   },
 };
 
