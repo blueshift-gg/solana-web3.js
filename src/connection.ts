@@ -42,7 +42,6 @@ import {
   array,
   boolean,
   literal,
-  record,
   union,
   optional,
   nullable,
