@@ -340,7 +340,6 @@ export class SystemInstruction {
     instruction: TransactionInstruction,
   ): CreateAccountParams {
     this.checkProgramId(instruction.programId);
-    this.checkKeyLength(instruction.keys, 2);
     const parsed = parseCreateAccountInstruction(toKitInstruction(instruction));
     return {
       fromPubkey: instruction.keys[0].pubkey,
@@ -358,7 +357,6 @@ export class SystemInstruction {
     instruction: TransactionInstruction,
   ): DecodedTransferInstruction {
     this.checkProgramId(instruction.programId);
-    this.checkKeyLength(instruction.keys, 2);
     const parsed = parseTransferSolInstruction(toKitInstruction(instruction));
     return {
       fromPubkey: instruction.keys[0].pubkey,
@@ -374,7 +372,6 @@ export class SystemInstruction {
     instruction: TransactionInstruction,
   ): DecodedTransferWithSeedInstruction {
     this.checkProgramId(instruction.programId);
-    this.checkKeyLength(instruction.keys, 3);
     const parsed = parseTransferSolWithSeedInstruction(toKitInstruction(instruction));
     return {
       fromPubkey: instruction.keys[0].pubkey,
@@ -391,7 +388,6 @@ export class SystemInstruction {
    */
   static decodeAllocate(instruction: TransactionInstruction): AllocateParams {
     this.checkProgramId(instruction.programId);
-    this.checkKeyLength(instruction.keys, 1);
     const parsed = parseAllocateInstruction(toKitInstruction(instruction));
     return {
       accountPubkey: instruction.keys[0].pubkey,
@@ -406,7 +402,6 @@ export class SystemInstruction {
     instruction: TransactionInstruction,
   ): AllocateWithSeedParams {
     this.checkProgramId(instruction.programId);
-    this.checkKeyLength(instruction.keys, 1);
     const parsed = parseAllocateWithSeedInstruction(toKitInstruction(instruction));
     return {
       accountPubkey: instruction.keys[0].pubkey,
@@ -422,7 +417,6 @@ export class SystemInstruction {
    */
   static decodeAssign(instruction: TransactionInstruction): AssignParams {
     this.checkProgramId(instruction.programId);
-    this.checkKeyLength(instruction.keys, 1);
     const parsed = parseAssignInstruction(toKitInstruction(instruction));
     return {
       accountPubkey: instruction.keys[0].pubkey,
@@ -437,7 +431,6 @@ export class SystemInstruction {
     instruction: TransactionInstruction,
   ): AssignWithSeedParams {
     this.checkProgramId(instruction.programId);
-    this.checkKeyLength(instruction.keys, 1);
     const parsed = parseAssignWithSeedInstruction(toKitInstruction(instruction));
     return {
       accountPubkey: instruction.keys[0].pubkey,
@@ -454,7 +447,6 @@ export class SystemInstruction {
     instruction: TransactionInstruction,
   ): CreateAccountWithSeedParams {
     this.checkProgramId(instruction.programId);
-    this.checkKeyLength(instruction.keys, 2);
     const parsed = parseCreateAccountWithSeedInstruction(toKitInstruction(instruction));
     return {
       fromPubkey: instruction.keys[0].pubkey,
@@ -474,7 +466,6 @@ export class SystemInstruction {
     instruction: TransactionInstruction,
   ): InitializeNonceParams {
     this.checkProgramId(instruction.programId);
-    this.checkKeyLength(instruction.keys, 3);
     const parsed = parseInitializeNonceAccountInstruction(toKitInstruction(instruction));
     return {
       noncePubkey: instruction.keys[0].pubkey,
@@ -489,7 +480,6 @@ export class SystemInstruction {
     instruction: TransactionInstruction,
   ): AdvanceNonceParams {
     this.checkProgramId(instruction.programId);
-    this.checkKeyLength(instruction.keys, 3);
     parseAdvanceNonceAccountInstruction(toKitInstruction(instruction));
     return {
       noncePubkey: instruction.keys[0].pubkey,
@@ -504,7 +494,6 @@ export class SystemInstruction {
     instruction: TransactionInstruction,
   ): WithdrawNonceParams {
     this.checkProgramId(instruction.programId);
-    this.checkKeyLength(instruction.keys, 5);
     const parsed = parseWithdrawNonceAccountInstruction(toKitInstruction(instruction));
     return {
       noncePubkey: instruction.keys[0].pubkey,
@@ -521,7 +510,6 @@ export class SystemInstruction {
     instruction: TransactionInstruction,
   ): AuthorizeNonceParams {
     this.checkProgramId(instruction.programId);
-    this.checkKeyLength(instruction.keys, 2);
     const parsed = parseAuthorizeNonceAccountInstruction(toKitInstruction(instruction));
     return {
       noncePubkey: instruction.keys[0].pubkey,
@@ -539,16 +527,6 @@ export class SystemInstruction {
     }
   }
 
-  /**
-   * @internal
-   */
-  static checkKeyLength(keys: Array<any>, expectedLength: number) {
-    if (keys.length < expectedLength) {
-      throw new Error(
-        `invalid instruction; found ${keys.length} keys, expected at least ${expectedLength}`,
-      );
-    }
-  }
 }
 
 /**
