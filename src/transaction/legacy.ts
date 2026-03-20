@@ -17,6 +17,8 @@ import type {Blockhash} from '../blockhash';
 import type {CompiledInstruction} from '../message';
 import {toUint8ArrayView} from '../utils/typed-array';
 import {verify} from '../utils/ed25519';
+import type {Instruction as KitInstruction} from '@solana/instructions';
+import {isKitInstruction, fromKitInstruction} from '../compat/instruction';
 
 /** @internal */
 type MessageSignednessErrors = {
@@ -383,7 +385,10 @@ export class Transaction {
    */
   add(
     ...items: Array<
-      Transaction | TransactionInstruction | TransactionInstructionCtorFields
+      | Transaction
+      | TransactionInstruction
+      | TransactionInstructionCtorFields
+      | KitInstruction
     >
   ): Transaction {
     if (items.length === 0) {
@@ -393,6 +398,8 @@ export class Transaction {
     items.forEach((item: any) => {
       if ('instructions' in item) {
         this.instructions = this.instructions.concat(item.instructions);
+      } else if (isKitInstruction(item)) {
+        this.instructions.push(fromKitInstruction(item));
       } else if ('data' in item && 'programId' in item && 'keys' in item) {
         this.instructions.push(item);
       } else {
@@ -693,7 +700,7 @@ export class Transaction {
    *
    * The Transaction must be assigned a valid `recentBlockhash` before invoking this method
    *
-  * @param {Array<Signer>} signers Array of signers that will sign the transaction
+   * @param {Array<Signer>} signers Array of signers that will sign the transaction
    */
   async sign(...signers: Array<TransactionSigner>) {
     if (signers.length === 0) {
@@ -827,9 +834,9 @@ export class Transaction {
   /**
    * Serialize the Transaction in the wire format.
    *
-  * @param {SerializeConfig} [config] Config of transaction.
+   * @param {SerializeConfig} [config] Config of transaction.
    *
-  * @returns {Uint8Array} Signature of transaction in wire format.
+   * @returns {Uint8Array} Signature of transaction in wire format.
    */
   serialize(config?: SerializeConfig): Uint8Array {
     const {requireAllSignatures, verifySignatures} = Object.assign(
@@ -932,7 +939,10 @@ export class Transaction {
       BASE58_CODEC.decode(signature),
     );
 
-    return Transaction.populate(Message.from(toUint8ArrayView(messageBytes)), signatures);
+    return Transaction.populate(
+      Message.from(toUint8ArrayView(messageBytes)),
+      signatures,
+    );
   }
 
   /**

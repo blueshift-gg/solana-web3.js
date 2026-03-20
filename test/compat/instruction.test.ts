@@ -6,8 +6,13 @@ import {PublicKey, TransactionInstruction} from '../../src';
 import {decodeData, encodeData} from '../../src/instruction';
 import {SYSTEM_INSTRUCTION_LAYOUTS} from '../../src/programs/system';
 
-import {toKitAddress} from '../../src/compat';
-import {toKitInstruction} from '../../src/compat';
+import {
+  toKitAddress,
+  toKitInstruction,
+  fromKitInstruction,
+} from '../../src/compat';
+import {isKitInstruction} from '../../src/compat/instruction';
+import {Transaction} from '../../src';
 
 function toLegacyByteArrayAppropriateForPlatform(data: Uint8Array) {
   return typeof Buffer !== 'undefined'
@@ -24,10 +29,7 @@ describe('toKitInstruction', () => {
     expect(encoded.constructor).to.equal(Uint8Array);
 
     expect(
-      decodeData(
-        SYSTEM_INSTRUCTION_LAYOUTS.Transfer,
-        Uint8Array.from(encoded),
-      ),
+      decodeData(SYSTEM_INSTRUCTION_LAYOUTS.Transfer, Uint8Array.from(encoded)),
     ).to.deep.equal(decodeData(SYSTEM_INSTRUCTION_LAYOUTS.Transfer, encoded));
   });
 
@@ -262,5 +264,184 @@ describe('toKitInstruction', () => {
       expect(converted.accounts?.some(account => account.role === expected)).to
         .be.true;
     });
+  });
+});
+
+describe('fromKitInstruction', () => {
+  it('converts a Kit instruction to a TransactionInstruction', () => {
+    const kitInstruction = {
+      programAddress: address('11111111111111111111111111111111'),
+      accounts: [
+        {
+          address: address('7EqQdEULxWcraVx3mXKFjc84LhCkMGZCkRuDpvcMwJeK'),
+          role: AccountRole.WRITABLE_SIGNER,
+        },
+        {
+          address: address('9A87Qt8sxxLMe7hcrjC4cPnho1CwWKRpk84ZTRPyvWNw'),
+          role: AccountRole.READONLY,
+        },
+      ],
+      data: new Uint8Array([10, 20, 30]),
+    };
+
+    const converted = fromKitInstruction(kitInstruction);
+
+    expect(converted).to.be.instanceOf(TransactionInstruction);
+    expect(converted.programId.toBase58()).to.eq(
+      '11111111111111111111111111111111',
+    );
+    expect(converted.keys).to.have.length(2);
+    expect(converted.keys[0].isSigner).to.be.true;
+    expect(converted.keys[0].isWritable).to.be.true;
+    expect(converted.keys[0].pubkey.toBase58()).to.eq(
+      '7EqQdEULxWcraVx3mXKFjc84LhCkMGZCkRuDpvcMwJeK',
+    );
+    expect(converted.keys[1].isSigner).to.be.false;
+    expect(converted.keys[1].isWritable).to.be.false;
+    expect(converted.data).to.deep.equal(new Uint8Array([10, 20, 30]));
+  });
+
+  it('handles instruction with no accounts', () => {
+    const kitInstruction = {
+      programAddress: address('11111111111111111111111111111111'),
+      data: new Uint8Array([1, 2, 3]),
+    };
+
+    const converted = fromKitInstruction(kitInstruction);
+
+    expect(converted.keys).to.have.length(0);
+  });
+
+  it('handles instruction with no data', () => {
+    const kitInstruction = {
+      programAddress: address('11111111111111111111111111111111'),
+      accounts: [
+        {
+          address: address('7EqQdEULxWcraVx3mXKFjc84LhCkMGZCkRuDpvcMwJeK'),
+          role: AccountRole.WRITABLE,
+        },
+      ],
+    };
+
+    const converted = fromKitInstruction(kitInstruction);
+
+    expect(converted.data).to.deep.equal(new Uint8Array(0));
+  });
+
+  it('roundtrips with toKitInstruction', () => {
+    const original = new TransactionInstruction({
+      keys: [
+        {
+          isSigner: true,
+          isWritable: true,
+          pubkey: new PublicKey('7EqQdEULxWcraVx3mXKFjc84LhCkMGZCkRuDpvcMwJeK'),
+        },
+        {
+          isSigner: false,
+          isWritable: false,
+          pubkey: new PublicKey('9A87Qt8sxxLMe7hcrjC4cPnho1CwWKRpk84ZTRPyvWNw'),
+        },
+      ],
+      programId: new PublicKey('11111111111111111111111111111111'),
+      data: new Uint8Array([42, 43, 44]),
+    });
+
+    const roundtripped = fromKitInstruction(toKitInstruction(original));
+
+    expect(roundtripped.programId.equals(original.programId)).to.be.true;
+    expect(roundtripped.keys).to.have.length(original.keys.length);
+    for (let i = 0; i < original.keys.length; i++) {
+      expect(roundtripped.keys[i].pubkey.equals(original.keys[i].pubkey)).to.be
+        .true;
+      expect(roundtripped.keys[i].isSigner).to.eq(original.keys[i].isSigner);
+      expect(roundtripped.keys[i].isWritable).to.eq(
+        original.keys[i].isWritable,
+      );
+    }
+    expect(roundtripped.data).to.deep.equal(original.data);
+  });
+});
+
+describe('isKitInstruction', () => {
+  it('returns true for a Kit instruction', () => {
+    expect(
+      isKitInstruction({
+        programAddress: address('11111111111111111111111111111111'),
+        accounts: [],
+        data: new Uint8Array([1]),
+      }),
+    ).to.be.true;
+  });
+
+  it('returns true for a minimal Kit instruction', () => {
+    expect(
+      isKitInstruction({
+        programAddress: address('11111111111111111111111111111111'),
+      }),
+    ).to.be.true;
+  });
+
+  it('returns false for a TransactionInstruction', () => {
+    const ix = new TransactionInstruction({
+      keys: [],
+      programId: PublicKey.default,
+    });
+    expect(isKitInstruction(ix)).to.be.false;
+  });
+
+  it('returns false for null/undefined/primitives', () => {
+    expect(isKitInstruction(null)).to.be.false;
+    expect(isKitInstruction(undefined)).to.be.false;
+    expect(isKitInstruction('string')).to.be.false;
+    expect(isKitInstruction(42)).to.be.false;
+  });
+});
+
+describe('Transaction.add() with Kit instructions', () => {
+  it('accepts a Kit instruction via add()', () => {
+    const kitIx = {
+      programAddress: address('11111111111111111111111111111111'),
+      accounts: [
+        {
+          address: address('7EqQdEULxWcraVx3mXKFjc84LhCkMGZCkRuDpvcMwJeK'),
+          role: AccountRole.WRITABLE_SIGNER,
+        },
+      ],
+      data: new Uint8Array([1, 2, 3]),
+    };
+
+    const tx = new Transaction();
+    tx.add(kitIx);
+
+    expect(tx.instructions).to.have.length(1);
+    const ix = tx.instructions[0];
+    expect(ix).to.be.instanceOf(TransactionInstruction);
+    expect(ix.programId.toBase58()).to.eq('11111111111111111111111111111111');
+    expect(ix.keys[0].pubkey.toBase58()).to.eq(
+      '7EqQdEULxWcraVx3mXKFjc84LhCkMGZCkRuDpvcMwJeK',
+    );
+    expect(ix.keys[0].isSigner).to.be.true;
+    expect(ix.keys[0].isWritable).to.be.true;
+    expect(ix.data).to.deep.equal(new Uint8Array([1, 2, 3]));
+  });
+
+  it('mixes Kit and web3.js instructions in a single add()', () => {
+    const kitIx = {
+      programAddress: address('11111111111111111111111111111111'),
+      accounts: [],
+      data: new Uint8Array([10]),
+    };
+    const web3jsIx = new TransactionInstruction({
+      keys: [],
+      programId: PublicKey.default,
+      data: new Uint8Array([20]),
+    });
+
+    const tx = new Transaction();
+    tx.add(kitIx, web3jsIx);
+
+    expect(tx.instructions).to.have.length(2);
+    expect(tx.instructions[0].data).to.deep.equal(new Uint8Array([10]));
+    expect(tx.instructions[1].data).to.deep.equal(new Uint8Array([20]));
   });
 });
