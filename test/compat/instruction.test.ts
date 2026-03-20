@@ -360,6 +360,39 @@ describe('fromKitInstruction', () => {
     }
     expect(roundtripped.data).to.deep.equal(original.data);
   });
+
+  it('preserves signer and writable roles from Codama client with noopSigner', async () => {
+    const {createNoopSigner} = await import('@solana/signers');
+    const {getTransferSolInstruction} = await import('@solana-program/system');
+    const {Keypair, SystemInstruction} = await import('../../src');
+
+    const from = (await Keypair.generate()).publicKey;
+    const to = (await Keypair.generate()).publicKey;
+
+    const kitIx = getTransferSolInstruction({
+      source: createNoopSigner(toKitAddress(from)),
+      destination: toKitAddress(to),
+      amount: 42,
+    });
+    const ix = fromKitInstruction(kitIx);
+
+    // source should be signer + writable
+    expect(ix.keys[0].pubkey.toBase58()).to.equal(from.toBase58());
+    expect(ix.keys[0].isSigner).to.equal(true);
+    expect(ix.keys[0].isWritable).to.equal(true);
+
+    // destination should be non-signer + writable
+    expect(ix.keys[1].pubkey.toBase58()).to.equal(to.toBase58());
+    expect(ix.keys[1].isSigner).to.equal(false);
+    expect(ix.keys[1].isWritable).to.equal(true);
+
+    // programId should be system program
+    expect(ix.programId.toBase58()).to.equal('11111111111111111111111111111111');
+
+    // data should decode correctly
+    const decoded = SystemInstruction.decodeTransfer(ix);
+    expect(decoded.lamports).to.equal(42n);
+  });
 });
 
 describe('isKitInstruction', () => {
