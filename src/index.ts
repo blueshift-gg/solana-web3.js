@@ -16,8 +16,9 @@ export * from './validator-info';
 export * from './vote-account';
 export * from './sysvar';
 export * from './utils';
+export * from './compat';
 
 /**
  * There are 1-billion lamports in one SOL
  */
-export const LAMPORTS_PER_SOL = 1000000000;
+export const LAMPORTS_PER_SOL = 1_000_000_000;
