@@ -17,9 +17,25 @@ import {
 import * as Layout from '../layout';
 import {NONCE_ACCOUNT_LENGTH} from '../nonce-account';
 import {Address} from '../address';
-import {SYSVAR_RECENT_BLOCKHASHES_PUBKEY, SYSVAR_RENT_PUBKEY} from '../sysvar';
 import {Transaction, TransactionInstruction} from '../transaction';
 import {u64} from '../utils/bigint';
+import {createNoopSigner} from '@solana/signers';
+import {
+  getAdvanceNonceAccountInstruction,
+  getAllocateInstruction,
+  getAllocateWithSeedInstruction,
+  getAssignInstruction,
+  getAssignWithSeedInstruction,
+  getAuthorizeNonceAccountInstruction,
+  getCreateAccountInstruction,
+  getCreateAccountWithSeedInstruction,
+  getInitializeNonceAccountInstruction,
+  getTransferSolInstruction,
+  getTransferSolWithSeedInstruction,
+  getWithdrawNonceAccountInstruction,
+} from '@solana-program/system';
+import {toKitAddress} from '../compat/address';
+import {fromKitInstruction} from '../compat/instruction';
 
 const SYSTEM_PROGRAM_ID = new Address('11111111111111111111111111111111');
 
@@ -843,20 +859,14 @@ export class SystemProgram {
    * Generate a transaction instruction that creates a new account
    */
   static createAccount(params: CreateAccountParams): TransactionInstruction {
-    return INSTRUCTIONS.Create.build(
-      {
-        lamports: params.lamports,
-        space: params.space,
-        programId: params.programId.toBytes(),
-      },
-      {
-        keys: [
-          {pubkey: params.fromPubkey, isSigner: true, isWritable: true},
-          {pubkey: params.newAccountPubkey, isSigner: true, isWritable: true},
-        ],
-        programId: this.programId,
-      },
-    );
+    const kitIx = getCreateAccountInstruction({
+      payer: createNoopSigner(toKitAddress(params.fromPubkey)),
+      newAccount: createNoopSigner(toKitAddress(params.newAccountPubkey)),
+      lamports: params.lamports,
+      space: params.space,
+      programAddress: toKitAddress(params.programId),
+    });
+    return fromKitInstruction(kitIx);
   }
 
   /**
@@ -865,30 +875,23 @@ export class SystemProgram {
   static transfer(
     params: TransferParams | TransferWithSeedParams,
   ): TransactionInstruction {
-    let keys;
     if ('basePubkey' in params) {
-      keys = [
-        {pubkey: params.fromPubkey, isSigner: false, isWritable: true},
-        {pubkey: params.basePubkey, isSigner: true, isWritable: false},
-        {pubkey: params.toPubkey, isSigner: false, isWritable: true},
-      ];
-      return INSTRUCTIONS.TransferWithSeed.build(
-        {
-          lamports: BigInt(params.lamports),
-          seed: params.seed,
-          programId: params.programId.toBytes(),
-        },
-        {keys, programId: this.programId},
-      );
+      const kitIx = getTransferSolWithSeedInstruction({
+        source: toKitAddress(params.fromPubkey),
+        baseAccount: createNoopSigner(toKitAddress(params.basePubkey)),
+        destination: toKitAddress(params.toPubkey),
+        amount: params.lamports,
+        fromSeed: params.seed,
+        fromOwner: toKitAddress(params.programId),
+      });
+      return fromKitInstruction(kitIx);
     } else {
-      keys = [
-        {pubkey: params.fromPubkey, isSigner: true, isWritable: true},
-        {pubkey: params.toPubkey, isSigner: false, isWritable: true},
-      ];
-      return INSTRUCTIONS.Transfer.build(
-        {lamports: BigInt(params.lamports)},
-        {keys, programId: this.programId},
-      );
+      const kitIx = getTransferSolInstruction({
+        source: createNoopSigner(toKitAddress(params.fromPubkey)),
+        destination: toKitAddress(params.toPubkey),
+        amount: params.lamports,
+      });
+      return fromKitInstruction(kitIx);
     }
   }
 
@@ -898,28 +901,21 @@ export class SystemProgram {
   static assign(
     params: AssignParams | AssignWithSeedParams,
   ): TransactionInstruction {
-    let keys;
     if ('basePubkey' in params) {
-      keys = [
-        {pubkey: params.accountPubkey, isSigner: false, isWritable: true},
-        {pubkey: params.basePubkey, isSigner: true, isWritable: false},
-      ];
-      return INSTRUCTIONS.AssignWithSeed.build(
-        {
-          base: params.basePubkey.toBytes(),
-          seed: params.seed,
-          programId: params.programId.toBytes(),
-        },
-        {keys, programId: this.programId},
-      );
+      const kitIx = getAssignWithSeedInstruction({
+        account: toKitAddress(params.accountPubkey),
+        baseAccount: createNoopSigner(toKitAddress(params.basePubkey)),
+        base: toKitAddress(params.basePubkey),
+        seed: params.seed,
+        programAddress: toKitAddress(params.programId),
+      });
+      return fromKitInstruction(kitIx);
     } else {
-      keys = [{pubkey: params.accountPubkey, isSigner: true, isWritable: true}];
-      return INSTRUCTIONS.Assign.build(
-        {
-          programId: params.programId.toBytes(),
-        },
-        {keys, programId: this.programId},
-      );
+      const kitIx = getAssignInstruction({
+        account: createNoopSigner(toKitAddress(params.accountPubkey)),
+        programAddress: toKitAddress(params.programId),
+      });
+      return fromKitInstruction(kitIx);
     }
   }
 
@@ -930,28 +926,20 @@ export class SystemProgram {
   static createAccountWithSeed(
     params: CreateAccountWithSeedParams,
   ): TransactionInstruction {
-    let keys = [
-      {pubkey: params.fromPubkey, isSigner: true, isWritable: true},
-      {pubkey: params.newAccountPubkey, isSigner: false, isWritable: true},
-    ];
-    if (!params.basePubkey.equals(params.fromPubkey)) {
-      keys.push({
-        pubkey: params.basePubkey,
-        isSigner: true,
-        isWritable: false,
-      });
-    }
-
-    return INSTRUCTIONS.CreateWithSeed.build(
-      {
-        base: params.basePubkey.toBytes(),
-        seed: params.seed,
-        lamports: params.lamports,
-        space: params.space,
-        programId: params.programId.toBytes(),
-      },
-      {keys, programId: this.programId},
-    );
+    const baseDiffersFromPayer = !params.basePubkey.equals(params.fromPubkey);
+    const kitIx = getCreateAccountWithSeedInstruction({
+      payer: createNoopSigner(toKitAddress(params.fromPubkey)),
+      newAccount: toKitAddress(params.newAccountPubkey),
+      ...(baseDiffersFromPayer
+        ? {baseAccount: createNoopSigner(toKitAddress(params.basePubkey))}
+        : {}),
+      base: toKitAddress(params.basePubkey),
+      seed: params.seed,
+      amount: params.lamports,
+      space: params.space,
+      programAddress: toKitAddress(params.programId),
+    });
+    return fromKitInstruction(kitIx);
   }
 
   /**
@@ -1000,68 +988,35 @@ export class SystemProgram {
   static nonceInitialize(
     params: InitializeNonceParams,
   ): TransactionInstruction {
-    return INSTRUCTIONS.InitializeNonceAccount.build(
-      {
-        authorized: params.authorizedPubkey.toBytes(),
-      },
-      {
-        keys: [
-          {pubkey: params.noncePubkey, isSigner: false, isWritable: true},
-          {
-            pubkey: SYSVAR_RECENT_BLOCKHASHES_PUBKEY,
-            isSigner: false,
-            isWritable: false,
-          },
-          {pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false},
-        ],
-        programId: this.programId,
-      },
-    );
+    const kitIx = getInitializeNonceAccountInstruction({
+      nonceAccount: toKitAddress(params.noncePubkey),
+      nonceAuthority: toKitAddress(params.authorizedPubkey),
+    });
+    return fromKitInstruction(kitIx);
   }
 
   /**
    * Generate an instruction to advance the nonce in a Nonce account
    */
   static nonceAdvance(params: AdvanceNonceParams): TransactionInstruction {
-    return INSTRUCTIONS.AdvanceNonceAccount.build(undefined, {
-      keys: [
-        {pubkey: params.noncePubkey, isSigner: false, isWritable: true},
-        {
-          pubkey: SYSVAR_RECENT_BLOCKHASHES_PUBKEY,
-          isSigner: false,
-          isWritable: false,
-        },
-        {pubkey: params.authorizedPubkey, isSigner: true, isWritable: false},
-      ],
-      programId: this.programId,
+    const kitIx = getAdvanceNonceAccountInstruction({
+      nonceAccount: toKitAddress(params.noncePubkey),
+      nonceAuthority: createNoopSigner(toKitAddress(params.authorizedPubkey)),
     });
+    return fromKitInstruction(kitIx);
   }
 
   /**
    * Generate a transaction instruction that withdraws lamports from a Nonce account
    */
   static nonceWithdraw(params: WithdrawNonceParams): TransactionInstruction {
-    return INSTRUCTIONS.WithdrawNonceAccount.build(
-      {lamports: params.lamports},
-      {
-        keys: [
-          {pubkey: params.noncePubkey, isSigner: false, isWritable: true},
-          {pubkey: params.toPubkey, isSigner: false, isWritable: true},
-          {
-            pubkey: SYSVAR_RECENT_BLOCKHASHES_PUBKEY,
-            isSigner: false,
-            isWritable: false,
-          },
-          {
-            pubkey: SYSVAR_RENT_PUBKEY,
-            isSigner: false,
-            isWritable: false,
-          },
-          {pubkey: params.authorizedPubkey, isSigner: true, isWritable: false},
-        ],
-        programId: this.programId,
-      },
-    );
+    const kitIx = getWithdrawNonceAccountInstruction({
+      nonceAccount: toKitAddress(params.noncePubkey),
+      recipientAccount: toKitAddress(params.toPubkey),
+      nonceAuthority: createNoopSigner(toKitAddress(params.authorizedPubkey)),
+      withdrawAmount: params.lamports,
+    });
+    return fromKitInstruction(kitIx);
   }
 
   /**
@@ -1069,18 +1024,12 @@ export class SystemProgram {
    * on a Nonce account.
    */
   static nonceAuthorize(params: AuthorizeNonceParams): TransactionInstruction {
-    return INSTRUCTIONS.AuthorizeNonceAccount.build(
-      {
-        authorized: params.newAuthorizedPubkey.toBytes(),
-      },
-      {
-        keys: [
-          {pubkey: params.noncePubkey, isSigner: false, isWritable: true},
-          {pubkey: params.authorizedPubkey, isSigner: true, isWritable: false},
-        ],
-        programId: this.programId,
-      },
-    );
+    const kitIx = getAuthorizeNonceAccountInstruction({
+      nonceAccount: toKitAddress(params.noncePubkey),
+      nonceAuthority: createNoopSigner(toKitAddress(params.authorizedPubkey)),
+      newNonceAuthority: toKitAddress(params.newAuthorizedPubkey),
+    });
+    return fromKitInstruction(kitIx);
   }
 
   /**
@@ -1089,27 +1038,22 @@ export class SystemProgram {
   static allocate(
     params: AllocateParams | AllocateWithSeedParams,
   ): TransactionInstruction {
-    let keys;
     if ('basePubkey' in params) {
-      keys = [
-        {pubkey: params.accountPubkey, isSigner: false, isWritable: true},
-        {pubkey: params.basePubkey, isSigner: true, isWritable: false},
-      ];
-      return INSTRUCTIONS.AllocateWithSeed.build(
-        {
-          base: params.basePubkey.toBytes(),
-          seed: params.seed,
-          space: params.space,
-          programId: params.programId.toBytes(),
-        },
-        {keys, programId: this.programId},
-      );
+      const kitIx = getAllocateWithSeedInstruction({
+        newAccount: toKitAddress(params.accountPubkey),
+        baseAccount: createNoopSigner(toKitAddress(params.basePubkey)),
+        base: toKitAddress(params.basePubkey),
+        seed: params.seed,
+        space: params.space,
+        programAddress: toKitAddress(params.programId),
+      });
+      return fromKitInstruction(kitIx);
     } else {
-      keys = [{pubkey: params.accountPubkey, isSigner: true, isWritable: true}];
-      return INSTRUCTIONS.Allocate.build(
-        {space: params.space},
-        {keys, programId: this.programId},
-      );
+      const kitIx = getAllocateInstruction({
+        newAccount: createNoopSigner(toKitAddress(params.accountPubkey)),
+        space: params.space,
+      });
+      return fromKitInstruction(kitIx);
     }
   }
 }

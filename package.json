@@ -79,6 +79,7 @@
     "@babel/runtime": "^7.25.0",
     "@noble/curves": "^1.4.2",
     "@noble/hashes": "^1.4.0",
+    "@solana-program/system": "^0.12.0",
     "@solana/addresses": "^6.5.0",
     "@solana/assertions": "^6.5.0",
     "@solana/buffer-layout": "^4.0.1",
