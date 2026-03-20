@@ -293,9 +293,7 @@ describe('Address', function () {
       const nonceSeed = Buffer.alloc(8);
       nonceSeed.writeBigUInt64LE(2n, 0);
       let seeds = [
-        new Address(
-          'H4snTKK9adiU15gP22ErfZYtro3aqR9BTMXiH3AwiUTQ',
-        ).toBytes(),
+        new Address('H4snTKK9adiU15gP22ErfZYtro3aqR9BTMXiH3AwiUTQ').toBytes(),
         nonceSeed,
       ];
       let programId = new Address(
@@ -507,7 +505,10 @@ describe('Address', function () {
 
   it('canBeDeserializedUncheckedWithBorsh', async () => {
     const publicKey = (await Keypair.generate()).publicKey;
-    const encoded = Uint8Array.from([...publicKey.encode(), ...new Uint8Array(10)]);
+    const encoded = Uint8Array.from([
+      ...publicKey.encode(),
+      ...new Uint8Array(10),
+    ]);
     const decoded = Address.decodeUnchecked(encoded);
     expect(decoded.equals(publicKey)).to.be.true;
   });
@@ -566,10 +567,11 @@ describe('Address', function () {
     const message = Buffer.from('public key verify message');
     const signature = await signer.signBytes(message);
 
-    expect(await signer.publicKey.verifySignature(signature, message)).to.be.true;
+    expect(await signer.publicKey.verifySignature(signature, message)).to.be
+      .true;
 
     const wrongMessage = Buffer.from('wrong message');
-    expect(await signer.publicKey.verifySignature(signature, wrongMessage)).to.be
-      .false;
+    expect(await signer.publicKey.verifySignature(signature, wrongMessage)).to
+      .be.false;
   });
 });
