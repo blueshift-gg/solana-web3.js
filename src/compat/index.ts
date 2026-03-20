@@ -5,6 +5,7 @@
  *
  * @packageDocumentation
  */
+import type {Rpc, RpcApi, RpcTransport} from '@solana/rpc';
 import {createJsonRpcApi, createRpc} from '@solana/rpc';
 import type {HttpHeaders} from '../connection';
 
@@ -18,10 +19,13 @@ type RpcCompatibleConnection = Readonly<{
 	rpcHttpHeaders?: HttpHeaders;
 }>;
 
-type RpcTransport = (request: {
-		payload: unknown;
-		signal?: AbortSignal;
-	}) => Promise<unknown>;
+/**
+ * Non-exported type/interface from [@solana/rpc-spec](https://github.com/anza-xyz/kit/blob/10793f5a2f3608fe3c68a0ad835a08e04c8e8579/packages/rpc-spec/src/rpc-api.ts#L73-L76)
+ */
+type RpcApiMethod = (...args: any) => any;
+interface RpcApiMethods {
+    [methodName: string]: RpcApiMethod;
+}
 
 const defaultFetch: typeof globalThis.fetch = (input, init) => {
 	if (typeof globalThis.fetch !== 'function') {
@@ -63,15 +67,15 @@ function createRpcTransport(
 /**
  * Creates a Kit RPC client from a Web3.js connection using its HTTP JSON-RPC transport.
  */
-export function toKitRpcClient<TApi = ReturnType<typeof createJsonRpcApi>>(
+export function toKitRpcClient<TRpcMethods extends RpcApiMethods = RpcApiMethods>(
 	connection: RpcCompatibleConnection,
-	api?: TApi,
-) {
+	api?: RpcApi<TRpcMethods>,
+): Rpc<TRpcMethods> {
 	return createRpc({
-		api: (api ?? createJsonRpcApi()) as never,
+		api: api ?? createJsonRpcApi(),
 		transport: createRpcTransport(
 			connection.rpcEndpoint,
 			connection.rpcHttpHeaders,
-		) as never,
+		),
 	});
 }
