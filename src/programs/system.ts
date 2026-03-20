@@ -39,6 +39,19 @@ import {
   parseWithdrawNonceAccountInstruction,
   SystemInstruction as KitSystemInstruction,
   SYSTEM_PROGRAM_ADDRESS,
+  ADVANCE_NONCE_ACCOUNT_DISCRIMINATOR,
+  ALLOCATE_DISCRIMINATOR,
+  ALLOCATE_WITH_SEED_DISCRIMINATOR,
+  ASSIGN_DISCRIMINATOR,
+  ASSIGN_WITH_SEED_DISCRIMINATOR,
+  AUTHORIZE_NONCE_ACCOUNT_DISCRIMINATOR,
+  CREATE_ACCOUNT_DISCRIMINATOR,
+  CREATE_ACCOUNT_WITH_SEED_DISCRIMINATOR,
+  INITIALIZE_NONCE_ACCOUNT_DISCRIMINATOR,
+  TRANSFER_SOL_DISCRIMINATOR,
+  TRANSFER_SOL_WITH_SEED_DISCRIMINATOR,
+  UPGRADE_NONCE_ACCOUNT_DISCRIMINATOR,
+  WITHDRAW_NONCE_ACCOUNT_DISCRIMINATOR,
 } from '@solana-program/system';
 import {toKitAddress} from '../compat/address';
 import {fromKitInstruction, toKitInstruction} from '../compat/instruction';
@@ -607,7 +620,7 @@ export const SYSTEM_INSTRUCTION_LAYOUTS = Object.freeze<{
   >;
 }>({
   Create: {
-    index: 0,
+    index: CREATE_ACCOUNT_DISCRIMINATOR,
     layout: BufferLayout.struct<SystemInstructionInputData['Create']>([
       BufferLayout.u32('instruction'),
       BufferLayout.ns64('lamports'),
@@ -616,21 +629,21 @@ export const SYSTEM_INSTRUCTION_LAYOUTS = Object.freeze<{
     ]),
   },
   Assign: {
-    index: 1,
+    index: ASSIGN_DISCRIMINATOR,
     layout: BufferLayout.struct<SystemInstructionInputData['Assign']>([
       BufferLayout.u32('instruction'),
       Layout.publicKey('programId'),
     ]),
   },
   Transfer: {
-    index: 2,
+    index: TRANSFER_SOL_DISCRIMINATOR,
     layout: BufferLayout.struct<SystemInstructionInputData['Transfer']>([
       BufferLayout.u32('instruction'),
       u64('lamports'),
     ]),
   },
   CreateWithSeed: {
-    index: 3,
+    index: CREATE_ACCOUNT_WITH_SEED_DISCRIMINATOR,
     layout: BufferLayout.struct<SystemInstructionInputData['CreateWithSeed']>([
       BufferLayout.u32('instruction'),
       Layout.publicKey('base'),
@@ -641,38 +654,38 @@ export const SYSTEM_INSTRUCTION_LAYOUTS = Object.freeze<{
     ]),
   },
   AdvanceNonceAccount: {
-    index: 4,
+    index: ADVANCE_NONCE_ACCOUNT_DISCRIMINATOR,
     layout: BufferLayout.struct<
       SystemInstructionInputData['AdvanceNonceAccount']
     >([BufferLayout.u32('instruction')]),
   },
   WithdrawNonceAccount: {
-    index: 5,
+    index: WITHDRAW_NONCE_ACCOUNT_DISCRIMINATOR,
     layout: BufferLayout.struct<
       SystemInstructionInputData['WithdrawNonceAccount']
     >([BufferLayout.u32('instruction'), BufferLayout.ns64('lamports')]),
   },
   InitializeNonceAccount: {
-    index: 6,
+    index: INITIALIZE_NONCE_ACCOUNT_DISCRIMINATOR,
     layout: BufferLayout.struct<
       SystemInstructionInputData['InitializeNonceAccount']
     >([BufferLayout.u32('instruction'), Layout.publicKey('authorized')]),
   },
   AuthorizeNonceAccount: {
-    index: 7,
+    index: AUTHORIZE_NONCE_ACCOUNT_DISCRIMINATOR,
     layout: BufferLayout.struct<
       SystemInstructionInputData['AuthorizeNonceAccount']
     >([BufferLayout.u32('instruction'), Layout.publicKey('authorized')]),
   },
   Allocate: {
-    index: 8,
+    index: ALLOCATE_DISCRIMINATOR,
     layout: BufferLayout.struct<SystemInstructionInputData['Allocate']>([
       BufferLayout.u32('instruction'),
       BufferLayout.ns64('space'),
     ]),
   },
   AllocateWithSeed: {
-    index: 9,
+    index: ALLOCATE_WITH_SEED_DISCRIMINATOR,
     layout: BufferLayout.struct<SystemInstructionInputData['AllocateWithSeed']>(
       [
         BufferLayout.u32('instruction'),
@@ -684,7 +697,7 @@ export const SYSTEM_INSTRUCTION_LAYOUTS = Object.freeze<{
     ),
   },
   AssignWithSeed: {
-    index: 10,
+    index: ASSIGN_WITH_SEED_DISCRIMINATOR,
     layout: BufferLayout.struct<SystemInstructionInputData['AssignWithSeed']>([
       BufferLayout.u32('instruction'),
       Layout.publicKey('base'),
@@ -693,7 +706,7 @@ export const SYSTEM_INSTRUCTION_LAYOUTS = Object.freeze<{
     ]),
   },
   TransferWithSeed: {
-    index: 11,
+    index: TRANSFER_SOL_WITH_SEED_DISCRIMINATOR,
     layout: BufferLayout.struct<SystemInstructionInputData['TransferWithSeed']>(
       [
         BufferLayout.u32('instruction'),
@@ -704,7 +717,7 @@ export const SYSTEM_INSTRUCTION_LAYOUTS = Object.freeze<{
     ),
   },
   UpgradeNonceAccount: {
-    index: 12,
+    index: UPGRADE_NONCE_ACCOUNT_DISCRIMINATOR,
     layout: BufferLayout.struct<
       SystemInstructionInputData['UpgradeNonceAccount']
     >([BufferLayout.u32('instruction')]),
