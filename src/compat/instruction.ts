@@ -9,6 +9,8 @@ import {TransactionInstruction} from '../transaction';
 import {Address} from '../address';
 
 import {toKitAddress} from './address';
+export {isKitInstruction} from './kit-instruction-utils';
+import {kitInstructionToLegacyArgs} from './kit-instruction-utils';
 
 /**
  * This can be used to convert a Web3.js [`TransactionInstruction`](https://solana-foundation.github.io/solana-web3.js/classes/TransactionInstruction.html)
@@ -63,35 +65,7 @@ export function toKitInstruction(
  * ```
  */
 export function fromKitInstruction(ix: Instruction): TransactionInstruction {
-  const accounts = (ix.accounts ?? []).map(a => ({
-    pubkey: new Address(a.address),
-    isSigner:
-      a.role === AccountRole.READONLY_SIGNER ||
-      a.role === AccountRole.WRITABLE_SIGNER,
-    isWritable:
-      a.role === AccountRole.WRITABLE || a.role === AccountRole.WRITABLE_SIGNER,
-  }));
-
-  return new TransactionInstruction({
-    keys: accounts,
-    programId: new Address(ix.programAddress),
-    data: ix.data ? Uint8Array.from(ix.data) : Uint8Array.of(),
-  });
-}
-
-/**
- * Type guard that checks whether the given value is a Kit {@link Instruction}.
- * Detects the Kit shape (`programAddress` string + optional `accounts`/`data`)
- * and distinguishes it from a web3.js `TransactionInstruction` (`programId` + `keys`).
- */
-export function isKitInstruction(value: unknown): value is Instruction {
-  if (typeof value !== 'object' || value === null) return false;
-  const obj = value as Record<string, unknown>;
-  return (
-    typeof obj.programAddress === 'string' &&
-    !('programId' in obj) &&
-    !('keys' in obj)
-  );
+  return new TransactionInstruction(kitInstructionToLegacyArgs(ix));
 }
 
 function toAccountRole(isSigner: boolean, isWritable: boolean): AccountRole {
